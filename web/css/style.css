@@ -12,17 +12,17 @@ body {
 
 /* === TELAS === */
 .tela {
-    display: none;
+    display: none !important; /* !important para garantir que esconda */
 }
 
 .tela.ativa {
-    display: block;
+    display: block !important; /* !important para garantir que mostre */
 }
 
 /* === TELA DE LOGIN === */
-#tela-login {
+#tela-login.ativa {
     height: 100vh;
-    display: flex !important;
+    display: flex !important; /* Apenas quando tiver classe 'ativa' */
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -58,8 +58,8 @@ body {
 }
 
 /* === TELA PRINCIPAL === */
-#tela-principal {
-    display: flex;
+#tela-principal.ativa {
+    display: flex !important; /* Apenas quando tiver classe 'ativa' */
     height: 100vh;
 }
 
