@@ -2,46 +2,79 @@
 let usuarioLogado = null;
 
 // === INICIALIZAÇÃO ===
+console.log('Script carregado!');
+
+// Esperar o PyWebView estar pronto
 window.addEventListener('pywebviewready', function() {
-    console.log('PyWebView pronto!');
+    console.log('✅ PyWebView está pronto!');
     carregarVersao();
 });
 
+// Se pywebview já estiver disponível (caso o evento já tenha disparado)
+setTimeout(() => {
+    if (window.pywebview) {
+        console.log('✅ PyWebView detectado diretamente');
+        carregarVersao();
+    } else {
+        console.log('⏳ Aguardando PyWebView...');
+    }
+}, 500);
+
 // === FUNÇÕES DE LOGIN ===
 async function realizarLogin() {
+    console.log('🔐 Tentando fazer login...');
+    
     const email = document.getElementById('login-email').value;
     const senha = document.getElementById('login-senha').value;
+    
+    console.log('Email digitado:', email);
     
     if (!email || !senha) {
         mostrarMensagem('login-mensagem', 'Preencha todos os campos', 'erro');
         return;
     }
     
+    // Verificar se pywebview está disponível
+    if (!window.pywebview || !window.pywebview.api) {
+        console.error('❌ PyWebView não está disponível!');
+        mostrarMensagem('login-mensagem', 'Erro: Sistema não inicializado', 'erro');
+        return;
+    }
+    
     try {
-        const resultado = await pywebview.api.login(email, senha);
+        console.log('📡 Enviando requisição de login...');
+        const resultado = await window.pywebview.api.login(email, senha);
+        console.log('📥 Resposta recebida:', resultado);
         
         if (resultado.success) {
+            console.log('✅ Login bem-sucedido!');
             usuarioLogado = resultado.usuario;
             mostrarTelaPrincipal();
         } else {
+            console.log('❌ Login falhou:', resultado.mensagem);
             mostrarMensagem('login-mensagem', resultado.mensagem, 'erro');
         }
     } catch (erro) {
-        console.error('Erro no login:', erro);
+        console.error('❌ Erro no login:', erro);
         mostrarMensagem('login-mensagem', 'Erro ao conectar com o sistema', 'erro');
     }
 }
 
 function realizarLogout() {
     if (confirm('Deseja realmente sair do sistema?')) {
-        pywebview.api.logout();
+        window.pywebview.api.logout();
         usuarioLogado = null;
         mostrarTelaLogin();
     }
 }
 
 function mostrarTelaPrincipal() {
+    console.log('📺 Mostrando tela principal...');
+    
+    // Esconder tela de login
     document.getElementById('tela-login').classList.remove('ativa');
+    
+    // Mostrar tela principal
     document.getElementById('tela-principal').classList.add('ativa');
     
     // Atualizar informações do usuário
@@ -53,16 +86,28 @@ function mostrarTelaPrincipal() {
 }
 
 function mostrarTelaLogin() {
+    console.log('📺 Mostrando tela de login...');
+    
+    // Mostrar tela de login
     document.getElementById('tela-login').classList.add('ativa');
+    
+    // Esconder tela principal
     document.getElementById('tela-principal').classList.remove('ativa');
     
     // Limpar campos
     document.getElementById('login-email').value = '';
     document.getElementById('login-senha').value = '';
+    
+    // Limpar mensagens
+    const mensagem = document.getElementById('login-mensagem');
+    mensagem.className = 'mensagem';
+    mensagem.textContent = '';
 }
 
 // === NAVEGAÇÃO ===
 function mostrarSecao(nomeSecao) {
+    console.log('📂 Navegando para:', nomeSecao);
+    
     // Esconder todas as seções
     const secoes = document.querySelectorAll('.secao');
     secoes.forEach(secao => secao.classList.remove('ativa'));
@@ -82,21 +127,27 @@ function mostrarSecao(nomeSecao) {
 
 // === DASHBOARD ===
 async function carregarDashboard() {
+    console.log('📊 Carregando dashboard...');
+    
     try {
-        const produtos = await pywebview.api.listar_produtos();
-        const clientes = await pywebview.api.listar_clientes();
+        const produtos = await window.pywebview.api.listar_produtos();
+        const clientes = await window.pywebview.api.listar_clientes();
         
         document.getElementById('total-produtos').textContent = produtos.produtos.length;
         document.getElementById('total-clientes').textContent = clientes.clientes.length;
+        
+        console.log('✅ Dashboard carregado!');
     } catch (erro) {
-        console.error('Erro ao carregar dashboard:', erro);
+        console.error('❌ Erro ao carregar dashboard:', erro);
     }
 }
 
 // === PRODUTOS ===
 async function carregarProdutos() {
+    console.log('👕 Carregando produtos...');
+    
     try {
-        const resultado = await pywebview.api.listar_produtos();
+        const resultado = await window.pywebview.api.listar_produtos();
         
         if (resultado.success) {
             const produtos = resultado.produtos;
@@ -140,9 +191,10 @@ async function carregarProdutos() {
             }
             
             document.getElementById('lista-produtos').innerHTML = html;
+            console.log('✅ Produtos carregados:', produtos.length);
         }
     } catch (erro) {
-        console.error('Erro ao carregar produtos:', erro);
+        console.error('❌ Erro ao carregar produtos:', erro);
     }
 }
 
@@ -170,7 +222,7 @@ async function salvarProduto() {
     }
     
     try {
-        const resultado = await pywebview.api.adicionar_produto(dados);
+        const resultado = await window.pywebview.api.adicionar_produto(dados);
         
         if (resultado.success) {
             mostrarMensagem('produto-mensagem', resultado.mensagem, 'sucesso');
@@ -199,12 +251,19 @@ function limparFormProduto() {
     document.getElementById('produto-estoque').value = '0';
     document.getElementById('produto-estoque-minimo').value = '5';
     document.getElementById('produto-codigo').value = '';
+    
+    // Limpar mensagem
+    const mensagem = document.getElementById('produto-mensagem');
+    mensagem.className = 'mensagem';
+    mensagem.textContent = '';
 }
 
 // === CLIENTES ===
 async function carregarClientes() {
+    console.log('👥 Carregando clientes...');
+    
     try {
-        const resultado = await pywebview.api.listar_clientes();
+        const resultado = await window.pywebview.api.listar_clientes();
         
         if (resultado.success) {
             const clientes = resultado.clientes;
@@ -243,9 +302,10 @@ async function carregarClientes() {
             }
             
             document.getElementById('lista-clientes').innerHTML = html;
+            console.log('✅ Clientes carregados:', clientes.length);
         }
     } catch (erro) {
-        console.error('Erro ao carregar clientes:', erro);
+        console.error('❌ Erro ao carregar clientes:', erro);
     }
 }
 
@@ -271,7 +331,7 @@ async function salvarCliente() {
     }
     
     try {
-        const resultado = await pywebview.api.adicionar_cliente(dados);
+        const resultado = await window.pywebview.api.adicionar_cliente(dados);
         
         if (resultado.success) {
             mostrarMensagem('cliente-mensagem', resultado.mensagem, 'sucesso');
@@ -298,6 +358,11 @@ function limparFormCliente() {
     document.getElementById('cliente-cidade').value = '';
     document.getElementById('cliente-estado').value = '';
     document.getElementById('cliente-cep').value = '';
+    
+    // Limpar mensagem
+    const mensagem = document.getElementById('cliente-mensagem');
+    mensagem.className = 'mensagem';
+    mensagem.textContent = '';
 }
 
 // === FUNÇÕES AUXILIARES ===
@@ -313,8 +378,11 @@ function fecharModal(modalId) {
 
 async function carregarVersao() {
     try {
-        const resultado = await pywebview.api.get_version();
-        document.getElementById('app-version').textContent = 'v' + resultado.version;
+        if (window.pywebview && window.pywebview.api) {
+            const resultado = await window.pywebview.api.get_version();
+            document.getElementById('app-version').textContent = 'v' + resultado.version;
+            console.log('✅ Versão carregada:', resultado.version);
+        }
     } catch (erro) {
         console.error('Erro ao carregar versão:', erro);
     }
@@ -329,9 +397,20 @@ window.onclick = function(event) {
 
 // Permitir login com Enter
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOM carregado!');
+    
     const senhaInput = document.getElementById('login-senha');
     if (senhaInput) {
         senhaInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                realizarLogin();
+            }
+        });
+    }
+    
+    const emailInput = document.getElementById('login-email');
+    if (emailInput) {
+        emailInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 realizarLogin();
             }

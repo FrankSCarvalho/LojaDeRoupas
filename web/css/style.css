@@ -22,7 +22,7 @@ body {
 /* === TELA DE LOGIN === */
 #tela-login {
     height: 100vh;
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
