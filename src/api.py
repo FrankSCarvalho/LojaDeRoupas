@@ -1,22 +1,69 @@
 import database as db
 from config import APP_VERSION
+import secrets
 
 class Api:
     """
-    Classe que contém todas as funções que serão chamadas pelo JavaScript.
+    API com sistema de sessão REAL para segurança.
+    Toda operação sensível agora verifica se o usuário está autenticado.
     """
     
     def __init__(self):
+        # Token de sessão único (gerado aleatoriamente)
+        self.session_token = None
         self.usuario_logado = None
     
-    def get_version(self):
-        """Retorna a versão do aplicativo"""
-        return {"version": APP_VERSION}
+    # ============================================
+    # DECORADOR DE SEGURANÇA
+    # ============================================
+    def requer_autenticacao(func):
+        """
+        Decorador que verifica se há sessão ativa.
+        Se não houver, retorna erro 401.
+        """
+        def wrapper(self, *args, **kwargs):
+            if not self.session_token or not self.usuario_logado:
+                return {
+                    "success": False, 
+                    "mensagem": "Não autorizado. Faça login novamente.",
+                    "codigo": 401
+                }
+            return func(self, *args, **kwargs)
+        return wrapper
     
-    # ========== AUTENTICAÇÃO ==========
+    def requer_nivel(niveis_permitidos):
+        """
+        Decorador que verifica o nível de acesso do usuário.
+        Exemplo: @requer_nivel(['admin', 'estoquista'])
+        """
+        def decorator(func):
+            def wrapper(self, *args, **kwargs):
+                if not self.session_token or not self.usuario_logado:
+                    return {
+                        "success": False,
+                        "mensagem": "Não autorizado. Faça login novamente.",
+                        "codigo": 401
+                    }
+                
+                if self.usuario_logado['nivel_acesso'] not in niveis_permitidos:
+                    return {
+                        "success": False,
+                        "mensagem": f"Acesso negado. Apenas {', '.join(niveis_permitidos)} podem realizar esta ação.",
+                        "codigo": 403
+                    }
+                
+                return func(self, *args, **kwargs)
+            return wrapper
+        return decorator
+    
+    # ============================================
+    # AUTENTICAÇÃO
+    # ============================================
     
     def login(self, email, senha):
-        """Realiza o login do usuário"""
+        """
+        Realiza o login e cria uma sessão.
+        """
         conn = db.get_connection()
         cursor = conn.cursor()
         
@@ -30,49 +77,72 @@ class Api:
         conn.close()
         
         if usuario:
+            # Criar sessão segura
+            self.session_token = secrets.token_urlsafe(32)
             self.usuario_logado = {
                 'id': usuario['id'],
                 'nome': usuario['nome'],
                 'email': usuario['email'],
                 'nivel_acesso': usuario['nivel_acesso']
             }
-            return {"success": True, "usuario": self.usuario_logado}
+            
+            print(f"[AUTH] Login bem-sucedido: {usuario['email']} (Sessão: {self.session_token[:8]}...)")
+            
+            return {
+                "success": True,
+                "usuario": self.usuario_logado,
+                "redirect": "main.html"  # Frontend vai redirecionar
+            }
         else:
-            return {"success": False, "mensagem": "Email ou senha incorretos"}
+            print(f"[AUTH] Falha no login: {email}")
+            return {
+                "success": False,
+                "mensagem": "Email ou senha incorretos"
+            }
     
     def logout(self):
-        """Faz logout do usuário"""
+        """
+        Destrói a sessão.
+        """
+        if self.usuario_logado:
+            print(f"[AUTH] Logout: {self.usuario_logado['email']}")
+        
+        self.session_token = None
         self.usuario_logado = None
-        return {"success": True}
+        
+        return {
+            "success": True,
+            "redirect": "login.html"
+        }
     
-    def get_usuario_logado(self):
-        """Retorna o usuário atualmente logado"""
-        return self.usuario_logado
+    @requer_autenticacao
+    def verificar_sessao(self):
+        """
+        Verifica se a sessão está ativa.
+        Usado quando a página main.html carrega.
+        """
+        return {
+            "success": True,
+            "usuario": self.usuario_logado
+        }
     
-    # ========== PRODUTOS ==========
+    # ============================================
+    # PRODUTOS (PROTEGIDOS)
+    # ============================================
     
+    @requer_autenticacao
     def listar_produtos(self):
-        """Lista todos os produtos ativos"""
+        """Lista produtos - requer autenticação"""
         conn = db.get_connection()
         cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT * FROM produtos WHERE ativo = 1 ORDER BY nome
-        """)
-        
+        cursor.execute("SELECT * FROM produtos WHERE ativo = 1 ORDER BY nome")
         produtos = [dict(row) for row in cursor.fetchall()]
         conn.close()
-        
         return {"success": True, "produtos": produtos}
     
+    @requer_nivel(['admin', 'estoquista'])
     def adicionar_produto(self, dados):
-        """Adiciona um novo produto"""
-        if not self.usuario_logado:
-            return {"success": False, "mensagem": "Usuário não autenticado"}
-        
-        if self.usuario_logado['nivel_acesso'] not in ['admin', 'estoquista']:
-            return {"success": False, "mensagem": "Sem permissão para adicionar produtos"}
-        
+        """Adiciona produto - apenas admin e estoquista"""
         conn = db.get_connection()
         cursor = conn.cursor()
         
@@ -98,29 +168,29 @@ class Api:
             produto_id = cursor.lastrowid
             conn.close()
             
-            return {"success": True, "mensagem": "Produto adicionado com sucesso!", "id": produto_id}
+            print(f"[PRODUTO] Adicionado por {self.usuario_logado['email']}: {dados.get('nome')}")
+            return {"success": True, "mensagem": "Produto adicionado!", "id": produto_id}
         except Exception as e:
             conn.close()
-            return {"success": False, "mensagem": f"Erro ao adicionar produto: {str(e)}"}
+            return {"success": False, "mensagem": f"Erro: {str(e)}"}
     
-    # ========== CLIENTES ==========
+    # ============================================
+    # CLIENTES (PROTEGIDOS)
+    # ============================================
     
+    @requer_autenticacao
     def listar_clientes(self):
-        """Lista todos os clientes"""
+        """Lista clientes - requer autenticação"""
         conn = db.get_connection()
         cursor = conn.cursor()
-        
         cursor.execute("SELECT * FROM clientes ORDER BY nome")
         clientes = [dict(row) for row in cursor.fetchall()]
         conn.close()
-        
         return {"success": True, "clientes": clientes}
     
+    @requer_autenticacao
     def adicionar_cliente(self, dados):
-        """Adiciona um novo cliente"""
-        if not self.usuario_logado:
-            return {"success": False, "mensagem": "Usuário não autenticado"}
-        
+        """Adiciona cliente - requer autenticação"""
         conn = db.get_connection()
         cursor = conn.cursor()
         
@@ -143,23 +213,23 @@ class Api:
             cliente_id = cursor.lastrowid
             conn.close()
             
-            return {"success": True, "mensagem": "Cliente adicionado com sucesso!", "id": cliente_id}
+            print(f"[CLIENTE] Adicionado por {self.usuario_logado['email']}: {dados.get('nome')}")
+            return {"success": True, "mensagem": "Cliente adicionado!", "id": cliente_id}
         except Exception as e:
             conn.close()
-            return {"success": False, "mensagem": f"Erro ao adicionar cliente: {str(e)}"}
+            return {"success": False, "mensagem": f"Erro: {str(e)}"}
     
-    # ========== VENDAS ==========
+    # ============================================
+    # VENDAS (PROTEGIDAS)
+    # ============================================
     
+    @requer_autenticacao
     def registrar_venda(self, dados):
-        """Registra uma nova venda"""
-        if not self.usuario_logado:
-            return {"success": False, "mensagem": "Usuário não autenticado"}
-        
+        """Registra venda - requer autenticação"""
         conn = db.get_connection()
         cursor = conn.cursor()
         
         try:
-            # Inserir a venda
             cursor.execute("""
                 INSERT INTO vendas (cliente_id, usuario_id, valor_total, desconto, valor_final, forma_pagamento)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -174,22 +244,28 @@ class Api:
             
             venda_id = cursor.lastrowid
             
-            # Inserir itens da venda e atualizar estoque
             for item in dados.get('itens', []):
                 cursor.execute("""
                     INSERT INTO itens_venda (venda_id, produto_id, quantidade, preco_unitario, subtotal)
                     VALUES (?, ?, ?, ?, ?)
                 """, (venda_id, item['produto_id'], item['quantidade'], item['preco_unitario'], item['subtotal']))
                 
-                # Atualizar estoque
-                cursor.execute("""
-                    UPDATE produtos SET estoque = estoque - ? WHERE id = ?
-                """, (item['quantidade'], item['produto_id']))
+                cursor.execute("UPDATE produtos SET estoque = estoque - ? WHERE id = ?", 
+                             (item['quantidade'], item['produto_id']))
             
             conn.commit()
             conn.close()
             
-            return {"success": True, "mensagem": "Venda registrada com sucesso!", "id": venda_id}
+            print(f"[VENDA] Registrada por {self.usuario_logado['email']}: R$ {dados.get('valor_final')}")
+            return {"success": True, "mensagem": "Venda registrada!", "id": venda_id}
         except Exception as e:
             conn.close()
-            return {"success": False, "mensagem": f"Erro ao registrar venda: {str(e)}"}
+            return {"success": False, "mensagem": f"Erro: {str(e)}"}
+    
+    # ============================================
+    # INFORMAÇÕES DO SISTEMA
+    # ============================================
+    
+    def get_version(self):
+        """Versão do app - não requer autenticação"""
+        return {"version": APP_VERSION}

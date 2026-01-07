@@ -1,116 +1,94 @@
-// === VARIÁVEIS GLOBAIS ===
+console.log('📱 Main.js carregado');
+
 let usuarioLogado = null;
 
-// === INICIALIZAÇÃO ===
-console.log('Script carregado!');
-
 // Esperar o PyWebView estar pronto
-window.addEventListener('pywebviewready', function() {
-    console.log('✅ PyWebView está pronto!');
-    carregarVersao();
-});
+window.addEventListener('pywebviewready', inicializar);
 
-// Se pywebview já estiver disponível (caso o evento já tenha disparado)
 setTimeout(() => {
     if (window.pywebview) {
-        console.log('✅ PyWebView detectado diretamente');
-        carregarVersao();
-    } else {
-        console.log('⏳ Aguardando PyWebView...');
+        inicializar();
     }
 }, 500);
 
-// === FUNÇÕES DE LOGIN ===
-async function realizarLogin() {
-    console.log('🔐 Tentando fazer login...');
+async function inicializar() {
+    console.log('✅ PyWebView pronto');
     
-    const email = document.getElementById('login-email').value;
-    const senha = document.getElementById('login-senha').value;
+    // VERIFICAR SESSÃO ANTES DE FAZER QUALQUER COISA
+    const sessaoValida = await verificarSessao();
     
-    console.log('Email digitado:', email);
-    
-    if (!email || !senha) {
-        mostrarMensagem('login-mensagem', 'Preencha todos os campos', 'erro');
+    if (!sessaoValida) {
+        console.log('🚫 Sessão inválida - redirecionando para login');
+        window.location.href = 'login.html';
         return;
     }
     
-    // Verificar se pywebview está disponível
-    if (!window.pywebview || !window.pywebview.api) {
-        console.error('❌ PyWebView não está disponível!');
-        mostrarMensagem('login-mensagem', 'Erro: Sistema não inicializado', 'erro');
+    console.log('✅ Sessão válida - carregando aplicação');
+    carregarVersao();
+    carregarDashboard();
+}
+
+// ========================================
+// VERIFICAÇÃO DE SESSÃO
+// ========================================
+async function verificarSessao() {
+    try {
+        const resultado = await window.pywebview.api.verificar_sessao();
+        
+        if (resultado.success) {
+            usuarioLogado = resultado.usuario;
+            
+            // Atualizar interface com dados do usuário
+            document.getElementById('usuario-nome').textContent = usuarioLogado.nome;
+            document.getElementById('usuario-nivel').textContent = usuarioLogado.nivel_acesso;
+            
+            console.log('👤 Usuário logado:', usuarioLogado.nome);
+            return true;
+        } else {
+            console.log('❌ Sessão inválida:', resultado.codigo);
+            return false;
+        }
+    } catch (erro) {
+        console.error('❌ Erro ao verificar sessão:', erro);
+        return false;
+    }
+}
+
+// ========================================
+// LOGOUT
+// ========================================
+async function realizarLogout() {
+    if (!confirm('Deseja realmente sair do sistema?')) {
         return;
     }
     
     try {
-        console.log('📡 Enviando requisição de login...');
-        const resultado = await window.pywebview.api.login(email, senha);
-        console.log('📥 Resposta recebida:', resultado);
-        
-        if (resultado.success) {
-            console.log('✅ Login bem-sucedido!');
-            usuarioLogado = resultado.usuario;
-            mostrarTelaPrincipal();
-        } else {
-            console.log('❌ Login falhou:', resultado.mensagem);
-            mostrarMensagem('login-mensagem', resultado.mensagem, 'erro');
-        }
+        await window.pywebview.api.logout();
+        console.log('👋 Logout realizado');
+        window.location.href = 'login.html';
     } catch (erro) {
-        console.error('❌ Erro no login:', erro);
-        mostrarMensagem('login-mensagem', 'Erro ao conectar com o sistema', 'erro');
+        console.error('Erro no logout:', erro);
     }
 }
 
-function realizarLogout() {
-    if (confirm('Deseja realmente sair do sistema?')) {
-        window.pywebview.api.logout();
-        usuarioLogado = null;
-        mostrarTelaLogin();
-    }
-}
-
-function mostrarTelaPrincipal() {
-    console.log('📺 Mostrando tela principal...');
-    
-    // Esconder tela de login
-    document.getElementById('tela-login').classList.remove('ativa');
-    
-    // Mostrar tela principal
-    document.getElementById('tela-principal').classList.add('ativa');
-    
-    // Atualizar informações do usuário
-    document.getElementById('usuario-nome').textContent = usuarioLogado.nome;
-    document.getElementById('usuario-nivel').textContent = usuarioLogado.nivel_acesso;
-    
-    // Carregar dados iniciais
-    carregarDashboard();
-}
-
-function mostrarTelaLogin() {
-    console.log('📺 Mostrando tela de login...');
-    
-    // Mostrar tela de login
-    document.getElementById('tela-login').classList.add('ativa');
-    
-    // Esconder tela principal
-    document.getElementById('tela-principal').classList.remove('ativa');
-    
-    // Limpar campos
-    document.getElementById('login-email').value = '';
-    document.getElementById('login-senha').value = '';
-    
-    // Limpar mensagens
-    const mensagem = document.getElementById('login-mensagem');
-    mensagem.className = 'mensagem';
-    mensagem.textContent = '';
-}
-
-// === NAVEGAÇÃO ===
+// ========================================
+// NAVEGAÇÃO
+// ========================================
 function mostrarSecao(nomeSecao) {
     console.log('📂 Navegando para:', nomeSecao);
     
+    // Remover classe 'ativa' de todos os botões
+    document.querySelectorAll('.menu-item').forEach(btn => {
+        btn.classList.remove('ativo');
+    });
+    
+    // Adicionar classe 'ativa' no botão clicado
+    event.target.classList.add('ativo');
+    
     // Esconder todas as seções
-    const secoes = document.querySelectorAll('.secao');
-    secoes.forEach(secao => secao.classList.remove('ativa'));
+    document.querySelectorAll('.secao').forEach(secao => {
+        secao.classList.remove('ativa');
+    });
     
     // Mostrar a seção selecionada
     document.getElementById('secao-' + nomeSecao).classList.add('ativa');
@@ -125,7 +103,9 @@ function mostrarSecao(nomeSecao) {
     }
 }
 
-// === DASHBOARD ===
+// ========================================
+// DASHBOARD
+// ========================================
 async function carregarDashboard() {
     console.log('📊 Carregando dashboard...');
     
@@ -133,28 +113,44 @@ async function carregarDashboard() {
         const produtos = await window.pywebview.api.listar_produtos();
         const clientes = await window.pywebview.api.listar_clientes();
         
+        // Verificar se houve erro de autenticação
+        if (produtos.codigo === 401 || clientes.codigo === 401) {
+            console.log('🚫 Sessão expirada');
+            alert('Sessão expirada. Faça login novamente.');
+            window.location.href = 'login.html';
+            return;
+        }
+        
         document.getElementById('total-produtos').textContent = produtos.produtos.length;
         document.getElementById('total-clientes').textContent = clientes.clientes.length;
         
-        console.log('✅ Dashboard carregado!');
+        console.log('✅ Dashboard carregado');
     } catch (erro) {
         console.error('❌ Erro ao carregar dashboard:', erro);
     }
 }
 
-// === PRODUTOS ===
+// ========================================
+// PRODUTOS
+// ========================================
 async function carregarProdutos() {
     console.log('👕 Carregando produtos...');
     
     try {
         const resultado = await window.pywebview.api.listar_produtos();
         
+        if (resultado.codigo === 401) {
+            alert('Sessão expirada. Faça login novamente.');
+            window.location.href = 'login.html';
+            return;
+        }
+        
         if (resultado.success) {
             const produtos = resultado.produtos;
             let html = '';
             
             if (produtos.length === 0) {
-                html = '<p>Nenhum produto cadastrado.</p>';
+                html = '<p style="text-align: center; color: #999;">Nenhum produto cadastrado.</p>';
             } else {
                 html = `
                     <table>
@@ -173,11 +169,11 @@ async function carregarProdutos() {
                 `;
                 
                 produtos.forEach(produto => {
-                    const estoqueClasse = produto.estoque <= produto.estoque_minimo ? 'style="color: red;"' : '';
+                    const estoqueClasse = produto.estoque <= produto.estoque_minimo ? 'style="color: red; font-weight: bold;"' : '';
                     html += `
                         <tr>
                             <td>${produto.codigo_barras || '-'}</td>
-                            <td>${produto.nome}</td>
+                            <td><strong>${produto.nome}</strong></td>
                             <td>${produto.categoria || '-'}</td>
                             <td>${produto.tamanho || '-'}</td>
                             <td>${produto.cor || '-'}</td>
@@ -224,6 +220,17 @@ async function salvarProduto() {
     try {
         const resultado = await window.pywebview.api.adicionar_produto(dados);
         
+        if (resultado.codigo === 401) {
+            alert('Sessão expirada. Faça login novamente.');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        if (resultado.codigo === 403) {
+            mostrarMensagem('produto-mensagem', resultado.mensagem, 'erro');
+            return;
+        }
+        
         if (resultado.success) {
             mostrarMensagem('produto-mensagem', resultado.mensagem, 'sucesso');
             setTimeout(() => {
@@ -251,26 +258,31 @@ function limparFormProduto() {
     document.getElementById('produto-estoque').value = '0';
     document.getElementById('produto-estoque-minimo').value = '5';
     document.getElementById('produto-codigo').value = '';
-    
-    // Limpar mensagem
-    const mensagem = document.getElementById('produto-mensagem');
-    mensagem.className = 'mensagem';
-    mensagem.textContent = '';
+    document.getElementById('produto-mensagem').className = 'mensagem';
+    document.getElementById('produto-mensagem').textContent = '';
 }
 
-// === CLIENTES ===
+// ========================================
+// CLIENTES
+// ========================================
 async function carregarClientes() {
     console.log('👥 Carregando clientes...');
     
     try {
         const resultado = await window.pywebview.api.listar_clientes();
         
+        if (resultado.codigo === 401) {
+            alert('Sessão expirada. Faça login novamente.');
+            window.location.href = 'login.html';
+            return;
+        }
+        
         if (resultado.success) {
             const clientes = resultado.clientes;
             let html = '';
             
             if (clientes.length === 0) {
-                html = '<p>Nenhum cliente cadastrado.</p>';
+                html = '<p style="text-align: center; color: #999;">Nenhum cliente cadastrado.</p>';
             } else {
                 html = `
                     <table>
@@ -289,7 +301,7 @@ async function carregarClientes() {
                 clientes.forEach(cliente => {
                     html += `
                         <tr>
-                            <td>${cliente.nome}</td>
+                            <td><strong>${cliente.nome}</strong></td>
                             <td>${cliente.cpf || '-'}</td>
                             <td>${cliente.telefone || '-'}</td>
                             <td>${cliente.email || '-'}</td>
@@ -333,6 +345,12 @@ async function salvarCliente() {
     try {
         const resultado = await window.pywebview.api.adicionar_cliente(dados);
         
+        if (resultado.codigo === 401) {
+            alert('Sessão expirada. Faça login novamente.');
+            window.location.href = 'login.html';
+            return;
+        }
+        
         if (resultado.success) {
             mostrarMensagem('cliente-mensagem', resultado.mensagem, 'sucesso');
             setTimeout(() => {
@@ -358,14 +376,13 @@ function limparFormCliente() {
     document.getElementById('cliente-cidade').value = '';
     document.getElementById('cliente-estado').value = '';
     document.getElementById('cliente-cep').value = '';
-    
-    // Limpar mensagem
-    const mensagem = document.getElementById('cliente-mensagem');
-    mensagem.className = 'mensagem';
-    mensagem.textContent = '';
+    document.getElementById('cliente-mensagem').className = 'mensagem';
+    document.getElementById('cliente-mensagem').textContent = '';
 }
 
-// === FUNÇÕES AUXILIARES ===
+// ========================================
+// FUNÇÕES AUXILIARES
+// ========================================
 function mostrarMensagem(elementoId, texto, tipo) {
     const elemento = document.getElementById(elementoId);
     elemento.textContent = texto;
@@ -381,7 +398,6 @@ async function carregarVersao() {
         if (window.pywebview && window.pywebview.api) {
             const resultado = await window.pywebview.api.get_version();
             document.getElementById('app-version').textContent = 'v' + resultado.version;
-            console.log('✅ Versão carregada:', resultado.version);
         }
     } catch (erro) {
         console.error('Erro ao carregar versão:', erro);
@@ -394,26 +410,3 @@ window.onclick = function(event) {
         event.target.classList.remove('ativo');
     }
 }
-
-// Permitir login com Enter
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 DOM carregado!');
-    
-    const senhaInput = document.getElementById('login-senha');
-    if (senhaInput) {
-        senhaInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                realizarLogin();
-            }
-        });
-    }
-    
-    const emailInput = document.getElementById('login-email');
-    if (emailInput) {
-        emailInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                realizarLogin();
-            }
-        });
-    }
-});

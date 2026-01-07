@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Loja de Roupas</title>
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <h1>🛍️ Loja de Roupas</h1>
+            <h2>Sistema de Gestão</h2>
+            
+            <form id="form-login">
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" id="email" placeholder="seu@email.com" required autofocus>
+                </div>
+                
+                <div class="form-group">
+                    <label>Senha:</label>
+                    <input type="password" id="senha" placeholder="Digite sua senha" required>
+                </div>
+                
+                <button type="submit" class="btn-login">Entrar</button>
+                
+                <div id="mensagem" class="mensagem"></div>
+                
+                <div class="info-login">
+                    <small>Usuário padrão: admin@loja.com / 123456</small>
+                </div>
+            </form>
+            
+            <div class="versao" id="versao">-</div>
+        </div>
+    </div>
+
+    <script src="js/login.js"></script>
+</body>
+</html>

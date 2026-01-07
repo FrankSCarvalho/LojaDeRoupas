@@ -5,59 +5,56 @@ from pathlib import Path
 from api import Api
 import database
 
-# Adiciona o diretório src ao path para imports funcionarem
+# Adiciona o diretório src ao path
 if getattr(sys, 'frozen', False):
-    # Se estiver rodando como executável
     application_path = sys._MEIPASS
 else:
-    # Se estiver rodando como script
     application_path = Path(__file__).parent
 
 def main():
     print("="*50)
-    print("INICIANDO LOJA DE ROUPAS")
+    print("LOJA DE ROUPAS - SISTEMA SEGURO")
     print("="*50)
     
     # Inicializar banco de dados
     database.init_database()
     
-    # Criar instância da API
+    # Criar instância da API (com sessão)
     api = Api()
     
     # Caminho para a pasta web
     if getattr(sys, 'frozen', False):
-        # Executável
         web_path = Path(sys._MEIPASS) / 'web'
     else:
-        # Desenvolvimento
         web_path = Path(__file__).parent.parent / 'web'
     
-    index_path = web_path / 'index.html'
+    # Iniciar pela tela de LOGIN
+    login_path = web_path / 'login.html'
     
-    print(f"[MAIN] Procurando interface em: {index_path}")
+    print(f"[MAIN] Iniciando em: {login_path}")
     
-    if not index_path.exists():
-        print(f"[ERRO] Arquivo index.html não encontrado em: {index_path}")
+    if not login_path.exists():
+        print(f"[ERRO] Arquivo login.html não encontrado!")
         sys.exit(1)
     
     # Criar janela do aplicativo
     window = webview.create_window(
-        title='Loja de Roupas - Sistema de Gestão',
-        url=str(index_path),
+        title='Loja de Roupas - Login',
+        url=str(login_path),
         js_api=api,
-        width=1280,
-        height=720,
-        resizable=True,
-        min_size=(800, 600)
+        width=500,
+        height=600,
+        resizable=False,  # Login fixo
+        min_size=(500, 600)
     )
     
-    print("[MAIN] Janela criada, iniciando interface...")
+    print("[MAIN] Janela criada (tela de login)")
+    print("[SECURITY] Sistema de sessão ativo")
     
     # Iniciar o aplicativo
-    webview.start(debug=True)  # debug=True mostra console no desenvolvimento
+    webview.start(debug=True)
     
     print("[MAIN] Aplicativo encerrado")
 
 if __name__ == '__main__':
     main()
-    
