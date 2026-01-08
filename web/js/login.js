@@ -10,8 +10,19 @@ setTimeout(() => {
     }
 }, 500);
 
-function inicializar() {
+async function inicializar() {
     console.log('✅ PyWebView pronto');
+    
+    // MAXIMIZAR A JANELA
+    try {
+        if (window.pywebview && window.pywebview.api) {
+            await window.pywebview.api.maximize_window();
+            console.log('🖥️ Janela maximizada');
+        }
+    } catch (erro) {
+        console.log('⚠️ Não foi possível maximizar automaticamente');
+    }
+    
     carregarVersao();
     
     // Configurar formulário

@@ -263,6 +263,41 @@ class Api:
             return {"success": False, "mensagem": f"Erro: {str(e)}"}
     
     # ============================================
+    # CONTROLE DA JANELA
+    # ============================================
+    
+    def maximize_window(self):
+        """
+        Maximiza a janela do aplicativo.
+        Chamado pelo JavaScript quando qualquer página carrega.
+        """
+        try:
+            import webview
+            windows = webview.windows
+            if windows:
+                windows[0].maximize()
+                print(f"[WINDOW] Janela maximizada")
+                return {"success": True}
+        except Exception as e:
+            print(f"[WINDOW] Erro ao maximizar: {e}")
+            return {"success": False}
+    
+    def resize_window(self, width, height):
+        """
+        Redimensiona a janela do aplicativo.
+        """
+        try:
+            import webview
+            windows = webview.windows
+            if windows:
+                windows[0].resize(width, height)
+                print(f"[WINDOW] Janela redimensionada para {width}x{height}")
+                return {"success": True}
+        except Exception as e:
+            print(f"[WINDOW] Erro ao redimensionar: {e}")
+            return {"success": False}
+    
+    # ============================================
     # INFORMAÇÕES DO SISTEMA
     # ============================================
     

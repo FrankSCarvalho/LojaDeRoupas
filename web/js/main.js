@@ -14,6 +14,16 @@ setTimeout(() => {
 async function inicializar() {
     console.log('✅ PyWebView pronto');
     
+    // MAXIMIZAR A JANELA
+    try {
+        if (window.pywebview && window.pywebview.api) {
+            await window.pywebview.api.maximize_window();
+            console.log('🖥️ Janela maximizada');
+        }
+    } catch (erro) {
+        console.log('⚠️ Não foi possível maximizar automaticamente');
+    }
+    
     // VERIFICAR SESSÃO ANTES DE FAZER QUALQUER COISA
     const sessaoValida = await verificarSessao();
     

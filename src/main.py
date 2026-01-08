@@ -37,21 +37,20 @@ def main():
         print(f"[ERRO] Arquivo login.html não encontrado!")
         sys.exit(1)
     
-    # Criar janela do aplicativo
+    # Criar janela do aplicativo - MAXIMIZADA
     window = webview.create_window(
-        title='Loja de Roupas - Login',
+        title='Loja de Roupas',
         url=str(login_path),
         js_api=api,
-        width=500,
-        height=600,
-        resizable=False,  # Login fixo
-        min_size=(500, 600)
+        fullscreen=False,    # Não é tela cheia (com barra de título)
+        resizable=True,      # Permite redimensionar
+        min_size=(800, 600)  # Tamanho mínimo caso desmaximize
     )
     
-    print("[MAIN] Janela criada (tela de login)")
+    print("[MAIN] Janela criada - Será maximizada ao iniciar")
     print("[SECURITY] Sistema de sessão ativo")
     
-    # Iniciar o aplicativo
+    # Iniciar o aplicativo com janela maximizada
     webview.start(debug=True)
     
     print("[MAIN] Aplicativo encerrado")
